@@ -24,9 +24,8 @@ class BotoMetaClass(type):
     https://stackoverflow.com/questions/11349183/how-to-wrap-every-method-of-a-class
     '''
     def __new__(meta, classname, bases, classDict):
-        newClassDict = {}
         for attributeName, attribute in classDict.items():
             if isinstance(attribute, FunctionType):
                 # replace it with a wrapped version
-                newClassDict[attributeName] = BotoErrorWrapper(attribute)
-        return type.__new__(meta, classname, bases, newClassDict)
+                classDict[attributeName] = BotoErrorWrapper(attribute)
+        return type.__new__(meta, classname, bases, classDict)

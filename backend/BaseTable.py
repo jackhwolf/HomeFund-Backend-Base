@@ -3,7 +3,7 @@ from boto3.dynamodb.conditions import Key, Attr, Not
 import os
 import time
 from uuid import uuid4
-from util import BotoException, BotoMetaClass
+from util import BotoException, BotoMetaClass, BotoErrorWrapper
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -14,8 +14,8 @@ class BaseTable(metaclass=BotoMetaClass):
     def __init__(self, tid, key1, key2):
         ''' store relevant info and try to create this table '''
         self.tid = tid
-        self.hashkey, hktype = key1
-        self.rangekey, rktype = key2
+        self.hashkey, self.hktype = key1
+        self.rangekey, self.rktype = key2
         self.key_schema = [
             {
                 'AttributeName': self.hashkey,
@@ -29,13 +29,19 @@ class BaseTable(metaclass=BotoMetaClass):
         self.attr_defn = [
             {
                 'AttributeName': self.hashkey,
-                'AttributeType': hktype
+                'AttributeType': self.hktype
             },
             {
                 'AttributeName': self.rangekey,
-                'AttributeType': rktype
+                'AttributeType': self.rktype
             }
         ]
+        try:
+            self._create()
+        except BotoException as be:
+            pass  # this would happend if the table already exists
+        except:
+            raise
 
     def key(self, hk, rk):
         ''' make a key for this table '''
@@ -66,6 +72,7 @@ class BaseTable(metaclass=BotoMetaClass):
                 "WriteCapacityUnits": kw.get('RCU', 2)
             }
         )
+        return 1
 
     def _put(self, item):
         ''' try to put in an item '''
@@ -123,6 +130,6 @@ class BaseTable(metaclass=BotoMetaClass):
         entry = self.getIfExists(hk)
         for e in entry:
             if e[self.rangekey] == rk:
-                self._delete({self.hashkey: hk, self.rangekey: rk})
+                self._delete(self.key(hk, rk))
                 break
         return 1
